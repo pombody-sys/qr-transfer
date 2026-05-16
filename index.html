@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- saved from url=(0049)file:///C:/Users/absbo/Downloads/qr-transfer.html -->
-<html lang="ja"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QR Transfer — PCからスマホへ</title>
-<script src="./qr-transfer_files/qrcode.min.js.ダウンロード"></script>
-<script src="./qr-transfer_files/jsQR.min.js.ダウンロード"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -342,15 +342,15 @@
 
 <div class="card">
   <div class="tabs">
-    <button class="tab active" onclick="switchTab(&#39;pc&#39;)" id="tab-pc">📟 PC側</button>
-    <button class="tab" onclick="switchTab(&#39;sp&#39;)" id="tab-sp">📱 スマホ側</button>
+    <button class="tab active" onclick="switchTab('pc')" id="tab-pc">📟 PC側</button>
+    <button class="tab" onclick="switchTab('sp')" id="tab-sp">📱 スマホ側</button>
   </div>
 
   <!-- ===== PC側 ===== -->
   <div class="panel active" id="panel-pc">
     <label>ファイルを選択</label>
-    <div class="upload-zone" onclick="document.getElementById(&#39;file-in&#39;).click()">
-      <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12V4m0 0L8 8m4-4l4 4"></path></svg>
+    <div class="upload-zone" onclick="document.getElementById('file-in').click()">
+      <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12V4m0 0L8 8m4-4l4 4"/></svg>
       <p>.txt ファイルをクリックして選択</p>
       <input type="file" id="file-in" accept=".txt" style="display:none" onchange="loadFile(event)">
     </div>
@@ -385,12 +385,12 @@
     <p style="font-size:0.875rem; color:var(--muted); margin-bottom:1rem; line-height:1.6;">PC画面のQRアニメーションにカメラを向けると、自動で全フレームを読み取ってテキストを復元します。</p>
 
     <div id="camera-placeholder">
-      <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+      <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
       <span>カメラ未起動</span>
     </div>
 
     <div id="scan-wrapper">
-      <video id="camera-video" autoplay="" playsinline="" muted=""></video>
+      <video id="camera-video" autoplay playsinline muted></video>
       <div class="scan-line" id="scan-line" style="display:none"></div>
       <canvas id="decode-canvas"></canvas>
     </div>
@@ -449,31 +449,57 @@ function chunk(str, size) {
   return a;
 }
 
-function startQR() {
+let qrImages = [];
+
+async function buildQRImages(frames) {
+  qrImages = [];
+  for (let i = 0; i < frames.length; i++) {
+    const dataUrl = await generateQRDataUrl(frames[i]);
+    qrImages.push(dataUrl);
+  }
+}
+
+function generateQRDataUrl(text) {
+  return new Promise((resolve) => {
+    const tmp = document.createElement('div');
+    tmp.style.position = 'absolute';
+    tmp.style.left = '-9999px';
+    document.body.appendChild(tmp);
+    new QRCode(tmp, { text, width: 260, height: 260, correctLevel: QRCode.CorrectLevel.L });
+    setTimeout(() => {
+      const el = tmp.querySelector('canvas') || tmp.querySelector('img');
+      let src = '';
+      if (el) src = el.tagName === 'CANVAS' ? el.toDataURL() : el.src;
+      document.body.removeChild(tmp);
+      resolve(src);
+    }, 100);
+  });
+}
+
+async function startQR() {
   const text = document.getElementById('txt-in').value.trim();
   if (!text) { alert('テキストを入力してください'); return; }
   stopQR();
-  const chunks = chunk(text, 200);
+  const chunks = chunk(text, 100);
   qrFrames = chunks.map((d, i) => JSON.stringify({ i, t: chunks.length, d }));
   qrIdx = 0;
   document.getElementById('qr-section').style.display = 'block';
+  document.getElementById('qr-label').textContent = 'QR生成中...';
+  await buildQRImages(qrFrames);
   drawFrame();
   qrTimer = setInterval(drawFrame, qrSpeed);
 }
 
 function drawFrame() {
+  if (!qrImages[qrIdx]) return;
   const canvas = document.getElementById('qr-canvas');
   const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, 260, 260);
-  const tmp = document.createElement('div');
-  new QRCode(tmp, { text: qrFrames[qrIdx], width: 260, height: 260, correctLevel: QRCode.CorrectLevel.L });
-  setTimeout(() => {
-    const el = tmp.querySelector('canvas') || tmp.querySelector('img');
-    if (!el) return;
-    const img = new Image();
-    img.onload = () => ctx.drawImage(img, 0, 0, 260, 260);
-    img.src = el.tagName === 'CANVAS' ? el.toDataURL() : el.src;
-  }, 30);
+  const img = new Image();
+  img.onload = () => {
+    ctx.clearRect(0, 0, 260, 260);
+    ctx.drawImage(img, 0, 0, 260, 260);
+  };
+  img.src = qrImages[qrIdx];
   document.getElementById('qr-label').textContent = `フレーム ${qrIdx + 1} / ${qrFrames.length}`;
   document.getElementById('qr-bar').style.width = ((qrIdx + 1) / qrFrames.length * 100) + '%';
   qrIdx = (qrIdx + 1) % qrFrames.length;
@@ -544,8 +570,10 @@ function doScan() {
   ctx.drawImage(v, 0, 0);
   const img = ctx.getImageData(0, 0, c.width, c.height);
   const code = jsQR(img.data, img.width, img.height);
-  if (!code || code.data === lastRaw) return;
+  if (!code) return;
+  if (code.data === lastRaw) return;
   lastRaw = code.data;
+  setTimeout(() => { if (lastRaw === code.data) lastRaw = ''; }, 1500);
   try {
     const obj = JSON.parse(code.data);
     if (typeof obj.i !== 'number' || typeof obj.d !== 'string') return;
@@ -601,6 +629,8 @@ function switchTab(tab) {
   document.getElementById('panel-' + tab).classList.add('active');
 }
 </script>
+</body>
+</html>
 
 
 </body><div><template shadowrootmode="open"><link href="chrome-extension://jffbochibkahlbbmanpmndnhmeliecah/picture-in-picture.css" type="text/css" rel="stylesheet"><div class="vivaldi-picture-in-picture-container initial"><input type="button" class="vivaldi-picture-in-picture-button" aria-label="picture-in-picture-button"></div></template></div></html>
