@@ -421,7 +421,7 @@
   </div>
 </div>
 
-<footer>phase 2 — QR Transfer / works offline / no data leaves your device</footer>
+<footer>QR Transfer v2.1 — no data leaves your device</footer>
 
 <script>
 // ===== PC側 =====
@@ -563,17 +563,30 @@ function resetScan() {
 
 function doScan() {
   const v = document.getElementById('camera-video');
-  if (!v.videoWidth) return;
+  if (!v.videoWidth || !v.videoHeight) return;
   const c = document.getElementById('decode-canvas');
-  c.width = v.videoWidth; c.height = v.videoHeight;
+
+  // スキャン精度向上のため解像度を固定
+  const W = 640, H = Math.round(640 * v.videoHeight / v.videoWidth);
+  c.width = W; c.height = H;
   const ctx = c.getContext('2d');
-  ctx.drawImage(v, 0, 0);
-  const img = ctx.getImageData(0, 0, c.width, c.height);
-  const code = jsQR(img.data, img.width, img.height);
+  ctx.drawImage(v, 0, 0, W, H);
+
+  // コントラスト強調
+  ctx.filter = 'contrast(1.4) brightness(1.1)';
+  ctx.drawImage(c, 0, 0);
+  ctx.filter = 'none';
+
+  const img = ctx.getImageData(0, 0, W, H);
+  const code = jsQR(img.data, img.width, img.height, {
+    inversionAttempts: 'attemptBoth'
+  });
+
   if (!code) return;
   if (code.data === lastRaw) return;
   lastRaw = code.data;
-  setTimeout(() => { if (lastRaw === code.data) lastRaw = ''; }, 1500);
+  setTimeout(() => { if (lastRaw === code.data) lastRaw = ''; }, 1200);
+
   try {
     const obj = JSON.parse(code.data);
     if (typeof obj.i !== 'number' || typeof obj.d !== 'string') return;
@@ -631,6 +644,3 @@ function switchTab(tab) {
 </script>
 </body>
 </html>
-
-
-</body><div><template shadowrootmode="open"><link href="chrome-extension://jffbochibkahlbbmanpmndnhmeliecah/picture-in-picture.css" type="text/css" rel="stylesheet"><div class="vivaldi-picture-in-picture-container initial"><input type="button" class="vivaldi-picture-in-picture-button" aria-label="picture-in-picture-button"></div></template></div></html>
