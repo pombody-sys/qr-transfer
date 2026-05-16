@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -375,7 +376,7 @@
         <button class="speed-btn" onclick="setSpeed(400,this)">速い</button>
         <button class="speed-btn active" onclick="setSpeed(700,this)">普通</button>
         <button class="speed-btn" onclick="setSpeed(1100,this)">遅い</button>
-        <button class="speed-btn" onclick="stopQR()">停止</button>
+        <button class="speed-btn" id="btn-stop-qr" onclick="toggleStop(this)">停止</button>
       </div>
     </div>
   </div>
@@ -421,7 +422,7 @@
   </div>
 </div>
 
-<footer>QR Transfer v2.1 — no data leaves your device</footer>
+<footer>QR Transfer v2.2 — no data leaves your device</footer>
 
 <script>
 // ===== PC側 =====
@@ -439,7 +440,7 @@ function loadFile(e) {
 function updateMeta() {
   const t = document.getElementById('txt-in').value;
   const b = new TextEncoder().encode(t).length;
-  const n = Math.ceil(b / 200);
+  const n = Math.ceil(b / 100);
   document.getElementById('txt-meta').textContent = b > 0 ? `${b} bytes → ${n} フレーム` : '';
 }
 
@@ -503,6 +504,18 @@ function drawFrame() {
   document.getElementById('qr-label').textContent = `フレーム ${qrIdx + 1} / ${qrFrames.length}`;
   document.getElementById('qr-bar').style.width = ((qrIdx + 1) / qrFrames.length * 100) + '%';
   qrIdx = (qrIdx + 1) % qrFrames.length;
+}
+
+function toggleStop(btn) {
+  if (qrTimer) {
+    stopQR();
+    btn.textContent = '再開';
+    btn.classList.add('active');
+  } else {
+    qrTimer = setInterval(drawFrame, qrSpeed);
+    btn.textContent = '停止';
+    btn.classList.remove('active');
+  }
 }
 
 function stopQR() {
